@@ -8,7 +8,7 @@ from frappe.utils import flt
 from erpnext.accounts.report.financial_statements import (get_period_list, get_columns, get_data)
 
 def execute(filters=None):
-	period_list = get_period_list(filters.fiscal_year, filters.periodicity, from_beginning=True)
+	period_list = get_period_list(filters.fiscal_year, filters.periodicity)
 
 	# TODO: Get company from consolidation
 	# Get Asset, Liability and Equity Data for each company
@@ -20,9 +20,10 @@ def execute(filters=None):
 	for company in consolidation.organization:
 		company_list.append(company.company)
 
-	asset = get_data(company_list[0], "Asset", "Debit", period_list)
-	liability = get_data(company_list[0], "Liability", "Credit", period_list)
-	equity = get_data(company_list[0], "Equity", "Credit", period_list)
+	asset = get_data(company_list[0], "Asset", "Debit", period_list, only_current_fiscal_year=False)
+	liability = get_data(company_list[0], "Liability", "Credit", period_list, only_current_fiscal_year=False)
+	equity = get_data(company_list[0], "Equity", "Credit", period_list, only_current_fiscal_year=False)
+
 	provisional_profit_loss = get_provisional_profit_loss(asset, liability, equity,
 		period_list, company_list[0])
 
@@ -33,12 +34,13 @@ def execute(filters=None):
 	if provisional_profit_loss:
 		data.append(provisional_profit_loss)
 
-	columns = get_columns(period_list)
+	columns = get_columns(filters.periodicity, period_list, company=company_list[0])
 
 	return columns, data
 
 def get_provisional_profit_loss(asset, liability, equity, period_list, company):
 	if asset and (liability or equity):
+		total=0
 		provisional_profit_loss = {
 			"account_name": "'" + _("Provisional Profit / Loss (Credit)") + "'",
 			"account": None,
@@ -59,6 +61,9 @@ def get_provisional_profit_loss(asset, liability, equity, period_list, company):
 
 			if provisional_profit_loss[period.key]:
 				has_value = True
+
+			total += flt(provisional_profit_loss[period.key])
+			provisional_profit_loss["total"] = total
 
 		if has_value:
 			return provisional_profit_loss

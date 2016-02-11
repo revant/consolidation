@@ -30,7 +30,7 @@ def execute(filters=None):
 	if net_profit_loss:
 		data.append(net_profit_loss)
 
-	columns = get_columns(period_list, company_list[0])
+	columns = get_columns(filters.periodicity, period_list, company=company_list[0])
 
 	return columns, data
 

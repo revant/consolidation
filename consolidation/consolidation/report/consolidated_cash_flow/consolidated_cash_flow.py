@@ -101,7 +101,7 @@ def execute(filters=None):
 			period_list, company_currency)
 
 	add_total_row_account(data, data, _("Net Change in Cash"), period_list, company_currency)
-	columns = get_columns(period_list)
+	columns = get_columns(filters.periodicity, period_list, company=company_list[0])
 
 	return columns, data
 
