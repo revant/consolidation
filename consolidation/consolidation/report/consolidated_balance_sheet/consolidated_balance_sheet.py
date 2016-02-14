@@ -15,17 +15,38 @@ def execute(filters=None):
 	# Get Company Relations from consolidation
 	# Make changes in Asset, Liability and Equity figures as per relations
 
-	company_list = []
-	consolidation = frappe.get_doc("Consolidation", filters.consolidation)
-	for company in consolidation.organization:
-		company_list.append(company.company)
+	parent_asset = get_data(filters.company, "Asset", "Debit", period_list, only_current_fiscal_year=False)
+	parent_liability = get_data(filters.company, "Liability", "Credit", period_list, only_current_fiscal_year=False)
+	parent_equity = get_data(filters.company, "Equity", "Credit", period_list, only_current_fiscal_year=False)
+	parent_provisional_profit_loss = get_provisional_profit_loss(parent_asset, parent_liability, parent_equity, period_list, filters.company)
 
-	asset = get_data(company_list[0], "Asset", "Debit", period_list, only_current_fiscal_year=False)
-	liability = get_data(company_list[0], "Liability", "Credit", period_list, only_current_fiscal_year=False)
-	equity = get_data(company_list[0], "Equity", "Credit", period_list, only_current_fiscal_year=False)
+	company_doc = frappe.get_doc("Company", filters.company)
+	no_of_children = len(company_doc.children)
+	consolidated_asset, consolidated_liability, consolidated_equity, consolidated_provisional_profit_loss = [], [], [], []
+	a, l, e, ppl = [], [], [], []
 
-	provisional_profit_loss = get_provisional_profit_loss(asset, liability, equity,
-		period_list, company_list[0])
+	for i in xrange(no_of_children):
+		a = get_data(company_doc.children[i].company, "Asset", "Debit", period_list, only_current_fiscal_year=False)
+		for p, c in zip(parent_asset, a):
+			if p.get("account_name") == c.get("account_name"):
+				# Add Accounts and add to consolidated_asset list
+				for i, j in zip(p,c):
+					if c[j]:
+						p[i] = c[j]
+				consolidated_asset.append(p)
+			else:
+				consolidated_asset.append(p)
+				consolidated_asset.append(c)
+
+		# l = get_data(company_doc.children[i], "Liability", "Credit", period_list, only_current_fiscal_year=False)
+		# e = get_data(company_doc.children[i], "Equity", "Credit", period_list, only_current_fiscal_year=False)
+		# ppl = get_provisional_profit_loss(a, l, e,
+		# 	period_list, company_doc.children[i])
+
+	asset = consolidated_asset if filters.consolidated else parent_asset
+	liability = parent_liability
+	equity = parent_equity
+	provisional_profit_loss = parent_provisional_profit_loss
 
 	data = []
 	data.extend(asset or [])
@@ -34,7 +55,7 @@ def execute(filters=None):
 	if provisional_profit_loss:
 		data.append(provisional_profit_loss)
 
-	columns = get_columns(filters.periodicity, period_list, company=company_list[0])
+	columns = get_columns(filters.periodicity, period_list)
 
 	return columns, data
 

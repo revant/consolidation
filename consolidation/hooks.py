@@ -111,3 +111,4 @@ app_license = "GPL v3"
 # 	"frappe.desk.doctype.event.event.get_events": "consolidation.event.get_events"
 # }
 
+fixtures = ["Custom Field"]
